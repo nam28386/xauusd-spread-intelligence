@@ -20,6 +20,14 @@ from xbsis.mt5_cli import _new_output, capture, run
 from xbsis.storage import ObservationStore
 
 
+@pytest.fixture(autouse=True)
+def isolate_fake_process_state(monkeypatch):
+    import xbsis.adapters.mt5 as mt5_module
+
+    monkeypatch.setattr(mt5_module, "_SESSION_BOUND_TERMINAL", None)
+    monkeypatch.setattr(mt5_module, "_SESSION_BOUND_IDENTITY", None)
+
+
 class FakeAccount:
     trade_mode = 2
 

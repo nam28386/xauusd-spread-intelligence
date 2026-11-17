@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ALLOWED_SUFFIXES = {".py", ".md", ".toml", ".lock", ".json", ".yml", ".html", ".css", ".js", ".ps1"}
-ALLOWED_DOTFILES = {".gitignore", ".python-version"}
+ALLOWED_DOTFILES = {".gitattributes", ".gitignore", ".python-version"}
 PATTERNS = [
     re.compile(rb"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
     re.compile(rb"gh[pousr]_[A-Za-z0-9]{20,}"),

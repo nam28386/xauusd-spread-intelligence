@@ -76,11 +76,10 @@ def test_gitignore_covers_sensitive_outputs_but_not_synthetic_fixture():
         "raw.csv",
     ]
     result = subprocess.run(  # noqa: S603 -- fixed git ignore query with synthetic names
-        ["git", "check-ignore", "--no-index", "--stdin"],  # noqa: S607
-        input="\n".join(sensitive + ["src/xbsis/fixtures/quotes.json"]) + "\n",
+        ["git", "check-ignore", "--no-index", "-z", "--stdin"],  # noqa: S607
+        input=("\0".join(sensitive + ["src/xbsis/fixtures/quotes.json"]) + "\0").encode(),
         capture_output=True,
-        text=True,
         cwd=root,
         check=True,
     )
-    assert set(result.stdout.splitlines()) == set(sensitive)
+    assert set(result.stdout.decode().split("\0")[:-1]) == set(sensitive)
