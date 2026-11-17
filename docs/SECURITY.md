@@ -62,3 +62,15 @@ These checks cannot establish absence of every secret, malicious dependency, rea
 quote or future behavioral bug. Treat unexpected findings as blockers, remove the
 cause and re-run checks. If an actual credential ever reaches Git, revoke it through
 the provider and arrange reviewed history remediation; do not paste it into chat.
+
+
+## Local live dashboard
+
+`live-serve` defaults to synthetic data and binds only 127.0.0.1. The local-only
+MT5 mode requires a configuration under ignored `data/config`, explicit read-only
+confirmation, verified units and separately authenticated terminal processes. The
+hub keeps recent quote data in memory and exposes it through local GET/WebSocket
+routes; it has no protection against other processes on the same machine. It rejects
+unrelated browser origins, limits clients and request rates, uses bundled assets and
+performs no telemetry. Do not proxy, tunnel or expose it. Queue drops and per-browser
+coalescing are visible; the worker writes local storage before attempting transport.

@@ -145,3 +145,135 @@ SDK binary floats are converted with `str(float)`, preserving the SDK value's
 round-trip representation, not original broker wire precision. Metadata versions
 hash the source aliases, environment, selected symbol and specification values;
 this identifies a captured specification, not its authenticity or acquisition time.
+
+# Phase 03 — local live dashboard
+
+**CLOUD_MOCK_DASHBOARD_VERIFIED** applies only to the synthetic cloud tests.
+**LOCAL_EXNESS_UNVERIFIED / LOCAL_PEPPERSTONE_UNVERIFIED** remain in force until
+you complete and inspect actual Windows captures. Two SDK sessions, Windows spawn,
+mutex behavior and terminal connectivity have not been proven on your machine.
+
+## 1. Check out the reviewed Phase 03 commit and install
+
+From the repository root, verify your work is saved. Use the exact Phase 03 commit
+SHA from the delivery report; this detaches HEAD without changing branch history:
+
+```powershell
+git status --short
+git fetch origin feat/phase-02-mt5-connector
+$Phase03Commit = Read-Host 'Exact Phase 03 commit SHA from the delivery report'
+git switch --detach $Phase03Commit
+uv sync --frozen --extra dev --extra mt5
+```
+
+Do not proceed if you have uncommitted changes that the checkout would affect.
+Authenticate and keep your terminals open yourself. For a REAL Exness doctor check,
+enter the actual local executable and symbol; the alias is a label you choose:
+
+```powershell
+$ExnessTerminal = Read-Host 'Absolute path to the running Exness terminal64.exe'
+$ExnessSymbol = Read-Host 'Exact gold symbol confirmed in the Exness terminal'
+uv run --frozen --no-sync python -m xbsis mt5-doctor --terminal-path $ExnessTerminal --symbol $ExnessSymbol --source-id exness.real.01 --broker-id exness --server-alias exness-real-a --confirm-usd-per-oz
+```
+
+Only use `--confirm-usd-per-oz` after confirming that unit in the instrument's
+specification. Verify REAL and `VALID` locally. Follow the earlier multi-terminal
+instructions to install and manually authenticate a separate Pepperstone DEMO.
+
+## 2. Try synthetic mode
+
+```powershell
+uv run --frozen --no-sync python -m xbsis live-serve --mode mock --port 8765
+```
+
+In a second local PowerShell window open the local dashboard:
+
+```powershell
+Start-Process 'http://127.0.0.1:8765/live/'
+```
+
+The synthetic values and REAL/DEMO labels are test fixtures, not real connectivity.
+Workers stop after the default 120-second observation window; use `--duration` from
+1 to 300 seconds for a different bounded window. The server remains available for
+inspection until Ctrl+C. Use Ctrl+C in the server window before
+starting the real mode. Mock workers also write ignored synthetic DuckDB output.
+
+## 3. Configure and start one local REAL source
+
+The checked-in example is deliberately synthetic and **must be edited locally**.
+The local configuration lives under ignored `data/config`; never commit or share it.
+Avoid overwriting a configuration you already have:
+
+```powershell
+New-Item -ItemType Directory -Force 'data/config' | Out-Null
+$LiveConfig = 'data/config/live_sources.local.json'
+if (Test-Path $LiveConfig) { throw 'Local configuration already exists; inspect it first.' }
+Copy-Item 'examples/live_sources.synthetic.json' $LiveConfig
+notepad $LiveConfig
+```
+
+For the first run, keep only one element in `sources`. Replace every synthetic
+alias, `terminal_path` and `symbol` with your own values; JSON backslashes in paths
+must be escaped. Set `expected_account_environment` to `REAL`. Leave
+`account_type_user_label` as `UNKNOWN` unless verified. Set `confirm_usd_per_oz`
+to the JSON boolean `true` **only after** verifying the unit for that instrument.
+The selected SDK profit currency must also be USD for a USD/oz metric. Do not put
+account identifiers, credentials or personal information in any field. Broker and
+server aliases are your labels, not SDK-verified identities.
+
+```powershell
+uv run --frozen --no-sync python -m xbsis live-serve --mode mt5 --port 8765 --sources-file 'data/config/live_sources.local.json' --confirm-live-readonly --duration 120
+```
+
+Open `http://127.0.0.1:8765/live/` locally. A running API or a `CONNECTING` card is
+not a live quote. Confirm the Exness REAL card reaches `LIVE`, its current quality
+flags are acceptable, and Bid/Ask and spread match the same symbol in MT5, allowing
+for intervening price changes. Do not paste quote values, local paths or account
+information into GitHub or cloud chat. If the market is closed or the source stops,
+expect `STALE` or `NO_NEW_QUOTES`; do not treat a retained previous quote as fresh.
+
+## 4. Add Pepperstone DEMO
+
+Stop the server with Ctrl+C, edit the same ignored local JSON and add a second
+source. Use a separate running Pepperstone installation directory, a distinct source
+ID and aliases, its exact selected symbol, `expected_account_environment: "DEMO"`
+and its independently verified unit. Authenticate it manually. Then restart the
+same `live-serve --mode mt5` command. The two child processes each own one SDK
+session, engine and DuckDB writer; the API process never opens their live files.
+Do not change accounts during a run. Aliases do not prove broker identity, and REAL
+versus DEMO spreads are not equivalent execution-cost observations.
+
+## 5. Inspect status and stop
+
+The read-only source endpoint provides sanitized status and a random output-run
+name. It does not include the terminal path or account identifier:
+
+```powershell
+$Sources = Invoke-RestMethod 'http://127.0.0.1:8765/live/sources'
+$Sources | Select-Object source_id, status, output_run, queue_dropped
+```
+
+After the relevant source reports `STOPPED`, its local sanitized summary is at
+`data/mt5/<output_run>/summary.json`. For the first source, for example:
+
+```powershell
+Get-Content (Join-Path 'data/mt5' "$($Sources[0].output_run)/summary.json")
+```
+
+The DuckDB in the same directory contains **raw live quotes** and remains local.
+Do not open a worker's DuckDB while it is writing. The earlier local-only inspection
+command may be used after `STOPPED`. A failed/interrupted worker can leave a partial
+DuckDB without a summary. Queue drops count observations stored locally but omitted
+from the display transport; they are not evidence that the broker omitted ticks.
+The history buffer keeps at most 6,000 points per source, and a slow or disconnected
+browser can miss display updates. Reconnect reloads the bounded history and shows
+coalesced display counts for the browser session; older evicted history is unavailable
+in the dashboard. Missing/stale samples and display loss create chart gaps. The chart
+uses JavaScript numbers for drawing only; API and stored prices remain decimal strings.
+
+Ctrl+C stops the server and signals all workers. A blocked SDK call may require forced
+termination after a short grace period, which is reported locally and may leave a
+partial file. Recheck your terminal state. The server listens only on loopback and
+performs no broker calls in mock mode. It has no authentication against other local
+processes: do not tunnel, proxy or expose it publicly. WebSocket browser origins
+are restricted to this local server, and all HTML/CSS/JS assets are bundled locally.

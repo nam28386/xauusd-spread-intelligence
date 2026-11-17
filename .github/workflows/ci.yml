@@ -36,5 +36,6 @@ jobs:
       - run: uv run --frozen --extra dev pytest
       - run: uv run --frozen python scripts/audit_repository.py
       - run: uv run --frozen python scripts/smoke_api.py
+      - run: uv run --frozen python scripts/smoke_live.py
       - run: uv run --frozen python -m xbsis replay
 # No broker credentials, account data, SDK import, live tests, or artifact uploads.

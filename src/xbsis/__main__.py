@@ -18,7 +18,18 @@ def main() -> None:
     from xbsis.mt5_cli import add_commands
 
     add_commands(commands)
+    from xbsis.live_cli import add_live_command
+
+    add_live_command(commands)
     args = parser.parse_args()
+    if args.command == "live-serve":
+        from xbsis.live_cli import run_live
+
+        try:
+            run_live(args)
+        except ValueError as exc:
+            parser.exit(2, f"Live error: {exc}\n")
+        return
     if args.command in {"mt5-doctor", "mt5-capture"}:
         from xbsis.adapters.mt5 import MT5Error
         from xbsis.mt5_cli import run

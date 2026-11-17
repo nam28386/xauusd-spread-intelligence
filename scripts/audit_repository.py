@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ALLOWED_SUFFIXES = {".py", ".md", ".toml", ".lock", ".json", ".yml"}
+ALLOWED_SUFFIXES = {".py", ".md", ".toml", ".lock", ".json", ".yml", ".html", ".css", ".js"}
 ALLOWED_DOTFILES = {".gitignore", ".python-version"}
 PATTERNS = [
     re.compile(rb"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),

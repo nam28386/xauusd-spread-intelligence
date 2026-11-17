@@ -55,20 +55,31 @@ def _new_output(run_name: str) -> Path:
     return output
 
 
-def _validate_bounds(duration: float, interval_ms: int) -> None:
+def _validate_bounds(duration: float, interval_ms: int, *, max_duration: int = 120) -> None:
     if isinstance(duration, bool) or not isinstance(duration, (int, float)):
-        raise MT5Error("Duration must be greater than 0 and at most 120 seconds.")
-    if not math.isfinite(duration) or not 0 < duration <= 120:
-        raise MT5Error("Duration must be greater than 0 and at most 120 seconds.")
+        raise MT5Error(f"Duration must be greater than 0 and at most {max_duration} seconds.")
+    if not math.isfinite(duration) or not 0 < duration <= max_duration:
+        raise MT5Error(f"Duration must be greater than 0 and at most {max_duration} seconds.")
     if type(interval_ms) is not int or not 50 <= interval_ms <= 10_000:
         raise MT5Error("Polling interval must be 50 to 10000 milliseconds.")
 
 
 def capture(
-    adapter, symbol, metadata, *, duration, interval_ms, output, clock=time, account_type="UNKNOWN"
+    adapter,
+    symbol,
+    metadata,
+    *,
+    duration,
+    interval_ms,
+    output,
+    clock=time,
+    account_type="UNKNOWN",
+    on_observation=None,
+    stop_event=None,
+    max_duration=120,
 ):
     """Poll snapshots in acquisition order; preserve duplicates and return sanitized counts."""
-    _validate_bounds(duration, interval_ms)
+    _validate_bounds(duration, interval_ms, max_duration=max_duration)
     if account_type not in {"STANDARD", "RAW", "RAZOR", "UNKNOWN"}:
         raise MT5Error("Invalid account type label.")
     engine = make_engine(symbol)
@@ -76,10 +87,12 @@ def capture(
     last_signature = None
     deadline = clock.monotonic() + duration
     with ObservationStore(output / "observations.duckdb") as store:
-        while clock.monotonic() < deadline:
+        while clock.monotonic() < deadline and (stop_event is None or not stop_event.is_set()):
             raw = adapter.quote(symbol)
             observation = engine.process(raw, metadata, processing_time_ns=clock.time_ns())
             store.append(observation)
+            if on_observation is not None:
+                on_observation(observation)
             total += 1
             status = quote_status(observation)
             if status == "STALE":
@@ -95,7 +108,11 @@ def capture(
                 last_signature = signature
             remaining = deadline - clock.monotonic()
             if remaining > 0:
-                clock.sleep(min(interval_ms / 1000, remaining))
+                delay = min(interval_ms / 1000, remaining)
+                if stop_event is not None:
+                    stop_event.wait(delay)
+                else:
+                    clock.sleep(delay)
     if changes:
         status = "OK"
     elif fresh:

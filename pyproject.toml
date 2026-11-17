@@ -12,6 +12,7 @@ dependencies = [
   "pydantic>=2.10,<3",
   "duckdb>=1.2,<2",
   "uvicorn>=0.34,<1",
+  "websockets>=13,<16",
 ]
 
 [project.optional-dependencies]

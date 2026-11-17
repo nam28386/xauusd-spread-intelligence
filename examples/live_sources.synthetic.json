@@ -1,0 +1,26 @@
+{
+  "sources": [
+    {
+      "source_id": "synthetic-source-one",
+      "broker_id": "synthetic-broker-one",
+      "server_alias": "synthetic-server-one",
+      "terminal_path": "C:\\SYNTHETIC_ONLY\\ONE\\terminal64.exe",
+      "symbol": "XAUUSD.mock",
+      "expected_account_environment": "REAL",
+      "account_type_user_label": "UNKNOWN",
+      "confirm_usd_per_oz": true,
+      "poll_interval_ms": 250
+    },
+    {
+      "source_id": "synthetic-source-two",
+      "broker_id": "synthetic-broker-two",
+      "server_alias": "synthetic-server-two",
+      "terminal_path": "C:\\SYNTHETIC_ONLY\\TWO\\terminal64.exe",
+      "symbol": "XAUUSD.mock",
+      "expected_account_environment": "DEMO",
+      "account_type_user_label": "UNKNOWN",
+      "confirm_usd_per_oz": true,
+      "poll_interval_ms": 250
+    }
+  ]
+}

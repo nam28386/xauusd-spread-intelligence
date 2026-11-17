@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>XBSIS — Local Spread Monitor</title>
+  <link rel="stylesheet" href="/live/style.css">
+  <script src="/live/app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><div class="brand-mark">X</div><div><strong>XBSIS</strong><small>SPREAD INTELLIGENCE</small></div></div>
+      <div class="top-status"><span class="status-dot" id="socket-dot"></span><span id="socket-status">CONNECTING</span><span class="separator"></span><span>LOCAL OBSERVATION</span></div>
+    </header>
+    <main>
+      <section class="page-heading"><div><div class="eyebrow">MARKET MONITOR <span>/</span> XAUUSD</div><h1>Spread monitor<span class="title-period">.</span></h1><p>Live snapshots from your local terminals, in one place.</p></div><div class="session-info"><span class="label">SESSION MODE</span><strong id="mode">CONNECTING</strong><small id="session-clock">Awaiting data</small></div></section>
+      <div class="notice"><span class="notice-icon">i</span><span id="mode-note">Connecting to the local observation hub. Quotes are snapshots, not executable prices.</span></div>
+      <section class="section-title"><div><span class="eyebrow">01 / SOURCES</span><h2>Broker observations</h2></div><div class="section-aside"><span class="status-dot"></span> LOCAL FEED <span class="muted">·</span> <span id="source-count">0 SOURCES</span></div></section>
+      <div id="cards" class="cards"><div class="placeholder">Waiting for local sources…</div></div>
+      <section class="chart-panel">
+        <div class="panel-head"><div><span class="eyebrow">02 / SPREAD HISTORY</span><h2>Spread over time</h2><p>USD per troy ounce <span class="muted">·</span> gaps indicate unavailable data</p></div><div class="chart-controls"><label for="window">WINDOW</label><select id="window"><option value="60">60 seconds</option><option value="120" selected>120 seconds</option><option value="300">300 seconds</option></select></div></div>
+        <div class="chart-legend" id="legend"></div>
+        <div class="chart-wrap"><canvas id="chart" aria-label="Spread history chart"></canvas><div class="chart-empty" id="chart-empty">Waiting for observations</div></div>
+        <div class="chart-foot"><span>RECEIVE TIME · UTC</span><span id="chart-range">—</span></div>
+      </section>
+      <section class="ops-panel"><div><span class="eyebrow">03 / SYSTEM HEALTH</span><h2>Transport &amp; quality</h2><p>Polling snapshots may repeat. Missing observations are never filled.</p></div><div class="ops-grid"><div><span class="label">QUEUE DROPS</span><strong id="drops">0</strong></div><div><span class="label">DISPLAY COALESCED</span><strong id="coalesced">0</strong></div><div><span class="label">REJECTED EVENTS</span><strong id="rejected">0</strong></div><div><span class="label">DISPLAY TIME · UTC</span><strong id="display-time">—</strong></div></div></section>
+      <footer><span>● &nbsp; LOCAL ONLY</span><p>REAL and DEMO are not equivalent execution costs. No arbitrage or dealer-position inference.</p><span>XBSIS / OBSERVATION</span></footer>
+    </main>
+  </div>
+</body>
+</html>

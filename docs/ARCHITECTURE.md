@@ -68,3 +68,14 @@ No POST/PUT/PATCH/DELETE data operations. Decimal JSON fields and nanosecond clo
 are strings. API limits are bounded; no CORS is enabled. TrustedHost rejects foreign
 Host headers. The CLI uses 127.0.0.1 and disables access logs. Running arbitrary
 uvicorn commands can override host behavior; use the supported CLI.
+
+
+## Phase 03 local live view
+
+`spawned worker -> existing SpreadEngine -> existing DuckDB writer -> bounded IPC
+queue -> local in-memory FastAPI hub -> WebSocket/browser`. Each configured terminal
+is isolated in its own worker. The API process never imports the MT5 SDK or opens a
+worker's active database. Output storage precedes a nonblocking queue write; queue
+loss and browser coalescing are counted. History is bounded at 1,200 points per
+source and unavailable data breaks chart lines. Four sources are the maximum; actual
+Windows sessions and terminal isolation remain subject to local validation.

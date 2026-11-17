@@ -44,3 +44,14 @@ See [product scope](docs/PRODUCT.md), [architecture](docs/ARCHITECTURE.md),
 [data contract](docs/DATA_CONTRACT.md), [security](docs/SECURITY.md),
 [Windows runbook](docs/WINDOWS_RUNBOOK.md), [implementation plan](docs/IMPLEMENTATION_PLAN.md)
 and [Phase 01 evidence](docs/PHASE01_REPORT.md). Contributor rules: [AGENTS.md](AGENTS.md).
+
+
+Phase 03 synthetic local dashboard (two spawned mock workers, no SDK):
+
+```sh
+uv run --frozen python -m xbsis live-serve --mode mock --port 8765
+```
+
+Open the local `/live/` route in your browser. See the Windows runbook for ignored
+local source configuration, explicit real-mode confirmation and two-terminal setup.
+Cloud mock results do not verify Windows SDK connectivity.
