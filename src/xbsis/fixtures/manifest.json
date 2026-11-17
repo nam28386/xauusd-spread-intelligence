@@ -1,0 +1,16 @@
+{
+  "research_id": "XBSIS-P01",
+  "hypothesis_id": null,
+  "scientific_status": "SOFTWARE_CONTRACT_ONLY",
+  "fixture_kind": "SYNTHETIC_ONLY",
+  "artifact": "quotes.json",
+  "fixture_version": "synthetic-v1",
+  "schema_version": "observation-v1",
+  "metric_version": "spread-v1",
+  "sha256": "7c846f644c1921bfd89a9c105a979d021ebac48ba35b66bfb5ea124de10f62b2",
+  "source": "Hand-authored synthetic examples; not broker or exchange data",
+  "clock": "UTC Unix epoch, synthetic broker-source milliseconds and local nanoseconds",
+  "labels": null,
+  "splits": null,
+  "cost_model": null
+}

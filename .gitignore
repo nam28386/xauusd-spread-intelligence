@@ -1,0 +1,57 @@
+# Python / tooling
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage*
+htmlcov/
+build/
+dist/
+*.egg-info/
+# Credentials and machine configuration (no real examples)
+.env
+.env.*
+*.env
+*.pem
+*.key
+*.p12
+*.pfx
+*credentials*
+*secrets*
+*token*
+# Local market/account data and outputs
+/data/
+/datasets/
+/artifacts/
+/local/
+/reports/
+*.db
+*.db.*
+*.sqlite*
+*.duckdb*
+*.parquet
+*.arrow
+*.csv
+*.jsonl
+# MT5 terminal state, logs and sessions
+/terminal/
+/MetaTrader*/
+/MQL5/
+/accounts/
+*.log
+logs/
+*.ex5
+*.mq5
+*.hst
+*.hcc
+*.dat
+*.ini
+*.srv
+*.session
+cookies*
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
