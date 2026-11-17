@@ -1,8 +1,8 @@
 # XAUUSD Broker Spread Intelligence System (XBSIS)
 
-Phase 01: **synthetic, read-only, local-first** Python 3.12 observation core.
-No trading, actual MT5 binding, live broker connection, frontend, or account data.
-Keep this repository private. Only synthetic fixtures belong in Git.
+Read-only, local-first XAUUSD observation with a synthetic Phase 01 core and an
+explicitly invoked Windows MT5 Phase 02 adapter. This repository is public. Only
+synthetic fixtures belong in Git; never upload account data or real market quotes.
 
 ```sh
 uv sync --frozen --extra dev
@@ -16,7 +16,9 @@ uv run --frozen python -m xbsis replay
 
 Toolchain: CPython 3.12; uv 0.13.6. `uv.lock` pins transitive dependencies and
 artifact hashes. `dev` is optional; **never use `--all-extras` in Linux CI**.
-`mt5` is optional and Windows AMD64 only; the Phase 01 core never imports it.
+`mt5` is optional and Windows AMD64 only; Linux never imports or installs it.
+For explicit local Windows doctor/capture, see [Windows runbook](docs/WINDOWS_RUNBOOK.md).
+Cloud FakeMT5 checks do not verify actual terminal connectivity.
 
 Start the synthetic API explicitly:
 

@@ -1,5 +1,8 @@
 # Architecture — Phase 01
 
+Phase 02 adds an explicit Windows-only SDK adapter and CLI; the synthetic API and
+Phase 01 pipeline described below remain unchanged. See WINDOWS_RUNBOOK.md.
+
 ```mermaid
 flowchart LR
     A[BrokerAdapter: mock] --> B[immutable RawQuote]

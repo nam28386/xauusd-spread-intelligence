@@ -1,5 +1,9 @@
 # Phase 01 engineering evidence
 
+Historical report: the owner subsequently approved public visibility and Phase 01
+commit f01220dcb11c800143051f14e50584b01f15c9df was published to main. The original
+observations below describe Phase 01 before that publication.
+
 Research ID: XBSIS-P01. Modes: greenfield scaffold and deterministic replay.
 Scientific status: SOFTWARE_CONTRACT_ONLY, no market hypothesis or live observation.
 Baseline: empty selected repository, no commits/files/remote refs/main; feature branch
@@ -102,9 +106,9 @@ subprocess arguments without a shell. CI permissions are read-only and no artifa
 are uploaded. Manual source/diff review complements AST, ignore and pattern audits.
 
 No common secret pattern or prohibited local-data artifact was found. This is not
-a comprehensive secret or dependency-vulnerability certification. Private repository
-visibility remains **UNKNOWN**, so no push has been attempted. GitHub privacy/API
-access and the missing PR base are external handoff blockers, not core test failures.
+a comprehensive secret or dependency-vulnerability certification. At the time of
+this report, GitHub API access was blocked and no push had been attempted. The owner
+subsequently approved public visibility and the baseline was published to main.
 
 ## Engineering gates and limitations
 
@@ -132,12 +136,11 @@ contract tests, synthetic replay/storage and local API validation using
 WINDOWS_RUNBOOK.md. Actual SDK binding/live collection requires a separate reviewed
 phase; it is not part of this delivery.
 
-No PR URL is available. The remote has no main branch/base and GitHub API access is
-blocked; private visibility cannot be established. The complete change is retained
-in a local feature-branch commit, not uploaded or merged. After allowing
-api.github.com, verify private visibility and API authorization. Establish an
-explicitly authorized base-branch workflow before pushing/creating a Draft PR; do
-not seed main automatically. Local-only work is not yet GitHub source of truth.
+At the time of this report, the remote had no main branch and the GitHub API was
+blocked; the change existed only in a local feature-branch commit. The owner later
+approved public visibility and authorized publication. Git transport confirmed main
+at f01220dcb11c800143051f14e50584b01f15c9df. API access and hosted CI status have
+not been verified.
 
 The onboarding configuration draft saved install_script, start_skill and the custom
 api.github.com domain addition, preserving package-manager presets. Saving did not

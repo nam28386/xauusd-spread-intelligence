@@ -14,9 +14,7 @@ ROOT = Path(package_file).parent
 def test_core_contains_no_sdk_import_or_execution_calls():
     forbidden_prefixes = ("order_", "orders_", "position_", "positions_")
     forbidden_calls = {
-        "initialize",
         "login",
-        "account_info",
         "history_deals_get",
         "history_orders_get",
     }
@@ -24,13 +22,19 @@ def test_core_contains_no_sdk_import_or_execution_calls():
         tree = ast.parse(path.read_text())
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
-                assert all(alias.name.split(".")[0] != "MetaTrader5" for alias in node.names)
+                assert all(
+                    alias.name.split(".")[0] != "MetaTrader5"
+                    or path.relative_to(ROOT).as_posix() == "adapters/mt5.py"
+                    for alias in node.names
+                )
             if isinstance(node, ast.ImportFrom):
                 assert (node.module or "").split(".")[0] != "MetaTrader5"
             if isinstance(node, ast.Call):
                 name = node.func.attr if isinstance(node.func, ast.Attribute) else ""
                 assert not name.startswith(forbidden_prefixes)
                 assert name not in forbidden_calls
+                if name in {"initialize", "account_info"}:
+                    assert path.relative_to(ROOT).as_posix() == "adapters/mt5.py"
             assert not isinstance(node, ast.Call) or not (
                 isinstance(node.func, ast.Name) and node.func.id in {"eval", "exec", "__import__"}
             )

@@ -5,14 +5,15 @@
 Read-only observation only. There is no execution, order, modification, position
 management or broker authentication code. Cloud tasks must never contact the user's
 local terminal or real trading account. Do not request account identifiers,
-passwords/investor passwords, session files, cookies or trading tokens. Do not add
-SDK account/history/order/position APIs, even for diagnostics.
+passwords/investor passwords, session files, cookies or trading tokens. The Windows
+connector may read only `trade_mode` from SDK account metadata and must immediately
+discard the object. Do not read account identifiers, balance,
+server, history, orders or positions.
 
-The repository must remain private. Verify visibility before pushing; if it cannot
-be verified, retain the local feature branch and report the blocker. Never merge
-main automatically, change other repositories, seed a missing main branch, or change
-visibility without a separately authorized workflow. GitHub connection credentials
-are platform-managed; never extract, print or commit their values.
+The repository is public by explicit owner approval. Audit each commit for secrets,
+account information, real quotes and terminal files before publication. Never merge
+main automatically, change other repositories or change visibility without a
+separately authorized workflow. GitHub connection credentials are platform-managed; never extract, print or commit their values.
 
 ## Data handling
 
@@ -26,7 +27,9 @@ Use local paths under ignored `data/` (or outside the checkout). Storage is not
 encrypted; protect it with OS permissions and disk encryption. No automatic sync,
 cloud storage, telemetry or data upload is implemented. Do not put data in folders
 synced to consumer cloud tools. Do not log quote payloads, SDK errors or environment
-contents. The CLI prints only synthetic summary hashes; access logging is disabled.
+contents. Synthetic replay prints hashes; local MT5 capture prints sanitized counts,
+and doctor prints only the selected symbol, environment and quality status. API
+access logging is disabled.
 
 ## Local API threat boundary
 
@@ -41,8 +44,9 @@ local JSON endpoints and require no external browser assets.
 ## Dependencies and CI
 
 Python 3.12, uv.lock hashes, frozen install, isolated .venv. MetaTrader5 is an optional
-extra with Windows AMD64 markers, never imported by the package. Linux CI installs
-only `dev`, verifies the SDK is absent, runs no live tests and uploads no data.
+extra with Windows AMD64 markers, imported only after local Windows checks and an
+explicit doctor/capture command. Linux CI installs only `dev`, verifies the SDK is
+absent, runs FakeMT5 tests and uploads no data.
 GitHub Actions use pinned action SHAs, read-only repository permissions and no
 persisted checkout credentials. Dependabot/security alerts and human dependency
 review are still needed; no vulnerability-database audit has been claimed.

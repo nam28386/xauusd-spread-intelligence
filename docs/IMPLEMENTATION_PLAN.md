@@ -38,7 +38,7 @@ Windows and GitHub-hosted CI are separate follow-ups, never inferred from Linux.
 
 Review full diff, formulas/units, staleness clock assumptions, schema versions,
 packaged synthetic hash and raw provenance. Commit only explicit source/docs/test
-paths on the feature branch. Verify private repository visibility before pushing.
+paths on the feature branch. The owner has approved public repository visibility.
 Create a Draft PR only if GitHub access is allowed and a legitimate main base exists.
 An empty repository cannot have a PR against a nonexistent main; do not invent the
 base, seed main or auto-merge. Report exact blockers and retain the local commit.

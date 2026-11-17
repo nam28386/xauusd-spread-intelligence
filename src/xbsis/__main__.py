@@ -15,7 +15,21 @@ def main() -> None:
     replay.add_argument("--output-dir", type=Path, help="optional local DuckDB/Parquet directory")
     serve = commands.add_parser("serve", help="serve only synthetic observations on 127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
+    from xbsis.mt5_cli import add_commands
+
+    add_commands(commands)
     args = parser.parse_args()
+    if args.command in {"mt5-doctor", "mt5-capture"}:
+        from xbsis.adapters.mt5 import MT5Error
+        from xbsis.mt5_cli import run
+
+        try:
+            run(args)
+        except MT5Error as exc:
+            parser.exit(2, f"MT5 error: {exc}\n")
+        except Exception:
+            parser.exit(2, "MT5 error: operation failed; details suppressed for privacy.\n")
+        return
     if args.command == "serve":
         import uvicorn
 
