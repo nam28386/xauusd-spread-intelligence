@@ -79,3 +79,22 @@ worker's active database. Output storage precedes a nonblocking queue write; que
 loss and browser coalescing are counted. History is bounded at 1,200 points per
 source and unavailable data breaks chart lines. Four sources are the maximum; actual
 Windows sessions and terminal isolation remain subject to local validation.
+
+## Sealed sessions and research
+
+Each existing isolated worker writes an active DuckDB segment, closes it, then seals
+it with a manifest and SHA-256 before another process may read it. Sessions have
+one immutable source identity; segment reads validate their size and digest. A hard
+kill may leave an unsealed active file; it is never queried by the API. Sessions
+are COMPLETE, INTERRUPTED or INCOMPLETE; legacy completed files with summary are
+read-only and have unknown completeness. Rotation is bounded to 1,000 observations
+per segment, 600 segments, nominal 1 GiB per source (the last segment may exceed it),
+and a 256 MiB free-space guard before opening a new segment. Limits interrupt the
+worker without deleting previous data. Disk exhaustion and external SDK hangs remain
+possible. Hashes detect accidental mutation; they are not authentication.
+
+The existing localhost live API reads sealed segments only, serves bounded pages,
+and runs serialized research jobs off the event loop. Snapshot and duration metrics
+and a backward receive-time as-of join live in `analytics.py`; there is no new
+execution service or database. The browser uses local assets and text-only DOM
+insertion; see [methodology](ANALYTICS_METHODOLOGY.md) for definitions.

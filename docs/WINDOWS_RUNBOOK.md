@@ -194,7 +194,7 @@ Start-Process 'http://127.0.0.1:8765/live/'
 
 The synthetic values and REAL/DEMO labels are test fixtures, not real connectivity.
 Workers stop after the default 120-second observation window; use `--duration` from
-1 to 300 seconds for a different bounded window. The server remains available for
+1 to 28800 seconds for a different bounded window. The server remains available for
 inspection until Ctrl+C. Use Ctrl+C in the server window before
 starting the real mode. Mock workers also write ignored synthetic DuckDB output.
 
@@ -277,3 +277,28 @@ partial file. Recheck your terminal state. The server listens only on loopback a
 performs no broker calls in mock mode. It has no authentication against other local
 processes: do not tunnel, proxy or expose it publicly. WebSocket browser origins
 are restricted to this local server, and all HTML/CSS/JS assets are bundled locally.
+
+## v1 research workflow
+
+For v1 use the reviewed feature branch and install with `.\scripts\install.ps1 -IncludeMT5`.
+Copy the synthetic template to the ignored local configuration directory and edit
+both independent terminal paths, exact symbols, environment labels and confirmed
+units locally. Do not put credentials or identifiers in it:
+
+```powershell
+New-Item -ItemType Directory -Force data/config | Out-Null
+Copy-Item examples/live_sources.synthetic.json data/config/sources.json
+notepad data/config/sources.json
+.\scripts\start.ps1 -Mode mt5 -SourcesFile data/config/sources.json -ConfirmLiveReadonly -Duration 28800
+```
+
+Use one source first; only add the second after its independent doctor check.
+The configured environment must match the actual account mode. Set confirmed
+USD/oz only after checking instrument specifications. Open
+`http://127.0.0.1:8765/live/`; use History to inspect sealed segments, Analytics
+for an explicit widening threshold and aggregate JSON download, and Compare for
+independent source selection and tolerance. Stop the server with Ctrl+C. The
+active segment is not available until sealed; a hard interruption can leave it
+unsealed and unavailable. Never upload data, generated reports, paths or logs.
+The server remains running after collectors stop. Follow
+[local acceptance](LOCAL_ACCEPTANCE.md) and [methodology](ANALYTICS_METHODOLOGY.md).

@@ -27,3 +27,13 @@ Acceptance requires real execution of the core suite on Linux, repeated identica
 mock replay, provenance and quality assertions, a localhost functional request,
 local storage round trips, and a repository safety review. GitHub-hosted CI and
 Windows checks are separate outcomes and must never be claimed from Linux tests.
+
+## Local research scope
+
+Overview, Realtime, Compare, History, Analytics and System present observations,
+quality and operational status, plus an explicit aggregate JSON download. The
+research view is descriptive: FACT is a recorded observation and its provenance;
+MEASUREMENT is a computed statistic; INFERENCE is an interpretation; HYPOTHESIS
+requires testing; UNKNOWN includes execution costs and unverified connectivity.
+REAL and DEMO observations do not establish comparable execution conditions.
+Polling is incomplete and local clock alignment is uncertain.

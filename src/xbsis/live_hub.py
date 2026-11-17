@@ -215,7 +215,7 @@ class LiveHub:
             ):
                 entry["active_until"] = now
             if entry["last_seen"] is not None and (
-                now - entry["last_seen"] > STALE_SECONDS or current_state in (3, 4, 5)
+                now - entry["last_seen"] > STALE_SECONDS or current_state in (3, 4, 5, 6, 7)
             ):
                 if not entry["gap"] and entry["latest"] is not None:
                     raw = entry["latest"]["quote"]["raw"]
@@ -231,6 +231,10 @@ class LiveHub:
 
     def status(self, entry, now):
         state = entry["state"].value
+        if state == 6:
+            return "STORAGE_LIMIT"
+        if state == 7:
+            return "FORCED_TERMINATION"
         if state == 4:
             return "ERROR"
         if state == 5:
@@ -322,7 +326,7 @@ class LiveHub:
         self.stop_event.set()
         if self._task:
             self._task.cancel()
-        for worker in self.workers:
+        for index, worker in enumerate(self.workers):
             deadline = time.monotonic() + 3
             while worker.is_alive() and time.monotonic() < deadline:
                 self.drain()
@@ -331,6 +335,17 @@ class LiveHub:
                 print("A worker did not stop cleanly and was terminated.", file=sys.stderr)
                 worker.terminate()
                 worker.join(timeout=2)
+                self.entries[self.sources[index]["source_id"]]["state"].value = 7
+                if not worker.is_alive():
+                    from xbsis.sessions import mark_forced_termination
+
+                    session_id = (
+                        f"{'mock' if self.mode == 'mock' else 'live'}-{self._run_id}-{index}"
+                    )
+                    try:
+                        mark_forced_termination(session_id)
+                    except (OSError, ValueError):
+                        pass  # The worker may have failed before creating a manifest.
         self.drain()
         self.refresh()
         self.queue.close()

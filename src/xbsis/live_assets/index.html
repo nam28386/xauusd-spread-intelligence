@@ -16,15 +16,48 @@
     <main>
       <section class="page-heading"><div><div class="eyebrow">MARKET MONITOR <span>/</span> XAUUSD</div><h1>Spread monitor<span class="title-period">.</span></h1><p>Live snapshots from your local terminals, in one place.</p></div><div class="session-info"><span class="label">SESSION MODE</span><strong id="mode">CONNECTING</strong><small id="session-clock">Awaiting data</small></div></section>
       <div class="notice"><span class="notice-icon">i</span><span id="mode-note">Connecting to the local observation hub. Quotes are snapshots, not executable prices.</span></div>
-      <section class="section-title"><div><span class="eyebrow">01 / SOURCES</span><h2>Broker observations</h2></div><div class="section-aside"><span class="status-dot"></span> LOCAL FEED <span class="muted">·</span> <span id="source-count">0 SOURCES</span></div></section>
-      <div id="cards" class="cards"><div class="placeholder">Waiting for local sources…</div></div>
-      <section class="chart-panel">
+      <nav class="research-nav" aria-label="Workstation views">
+        <button type="button" data-tab="overview" class="selected">Overview</button>
+        <button type="button" data-tab="realtime">Realtime</button>
+        <button type="button" data-tab="compare">Compare</button>
+        <button type="button" data-tab="history">History</button>
+        <button type="button" data-tab="analytics">Analytics</button>
+        <button type="button" data-tab="system">System</button>
+      </nav>
+      <section data-panel="overview" class="section-title"><div><span class="eyebrow">01 / SOURCES</span><h2>Broker observations</h2></div><div class="section-aside"><span class="status-dot"></span> LOCAL FEED <span class="muted">·</span> <span id="source-count">0 SOURCES</span></div></section>
+      <div data-panel="overview" id="cards" class="cards"><div class="placeholder">Waiting for local sources…</div></div>
+      <section data-panel="realtime" class="chart-panel" hidden>
         <div class="panel-head"><div><span class="eyebrow">02 / SPREAD HISTORY</span><h2>Spread over time</h2><p>USD per troy ounce <span class="muted">·</span> gaps indicate unavailable data</p></div><div class="chart-controls"><label for="window">WINDOW</label><select id="window"><option value="60">60 seconds</option><option value="120" selected>120 seconds</option><option value="300">300 seconds</option></select></div></div>
-        <div class="chart-legend" id="legend"></div>
+        <div class="chart-legend" id="legend"></div><div id="source-picker" class="source-picker"></div>
         <div class="chart-wrap"><canvas id="chart" aria-label="Spread history chart"></canvas><div class="chart-empty" id="chart-empty">Waiting for observations</div></div>
         <div class="chart-foot"><span>RECEIVE TIME · UTC</span><span id="chart-range">—</span></div>
       </section>
-      <section class="ops-panel"><div><span class="eyebrow">03 / SYSTEM HEALTH</span><h2>Transport &amp; quality</h2><p>Polling snapshots may repeat. Missing observations are never filled.</p></div><div class="ops-grid"><div><span class="label">QUEUE DROPS</span><strong id="drops">0</strong></div><div><span class="label">DISPLAY COALESCED</span><strong id="coalesced">0</strong></div><div><span class="label">REJECTED EVENTS</span><strong id="rejected">0</strong></div><div><span class="label">DISPLAY TIME · UTC</span><strong id="display-time">—</strong></div></div></section>
+      <section data-panel="system" class="ops-panel" hidden><div><span class="eyebrow">03 / SYSTEM HEALTH</span><h2>Transport &amp; quality</h2><p>Polling snapshots may repeat. Missing observations are never filled.</p></div><div class="ops-grid"><div><span class="label">QUEUE DROPS</span><strong id="drops">0</strong></div><div><span class="label">DISPLAY COALESCED</span><strong id="coalesced">0</strong></div><div><span class="label">REJECTED EVENTS</span><strong id="rejected">0</strong></div><div><span class="label">DISPLAY TIME · UTC</span><strong id="display-time">—</strong></div></div><div><div id="system-detail" class="system-detail"></div><p id="system-storage" class="research-note">Storage status not loaded.</p></div></section>
+      <section data-panel="history" class="research-panel" hidden>
+        <span class="eyebrow">SEALED LOCAL SEGMENTS</span><h2>Session history</h2>
+        <p>Reads only closed segments. Incomplete sessions may contain inaccessible active data.</p>
+        <div class="research-controls"><label>Session<select id="history-session"></select></label><button id="refresh-sessions" type="button">Refresh sessions</button><label>Segment<select id="history-segment"></select></label></div>
+        <div class="research-controls"><label>Start receive ns · UTC<input id="history-start" inputmode="numeric" placeholder="optional"></label><label>End receive ns · UTC<input id="history-end" inputmode="numeric" placeholder="optional"></label><button id="history-load" type="button">Load window</button><button id="history-next" type="button" disabled>Next page</button></div>
+        <p id="history-info" class="research-note">Select a session. Times are local receive-clock Unix nanoseconds.</p>
+        <div class="history-canvas"><canvas id="history-chart" aria-label="Historical spread chart"></canvas></div>
+        <div class="table-wrap"><table><thead><tr><th>RECEIVE · UTC</th><th>SOURCE MS</th><th>BID</th><th>ASK</th><th>USD/OZ</th><th>QUALITY</th></tr></thead><tbody id="history-rows"></tbody></table></div>
+      </section>
+      <section data-panel="analytics" class="research-panel" hidden>
+        <span class="eyebrow">DESCRIPTIVE · NOT EXECUTION COST</span><h2>Session analytics</h2>
+        <p>Snapshot statistics and receive-time weighted statistics. Choose the widening threshold explicitly.</p>
+        <div class="research-controls"><label>Session<select id="analytics-session"></select></label><label>Widening threshold · USD/oz<input id="analytics-threshold" inputmode="decimal" placeholder="required"></label><label>Freshness limit · seconds<input id="analytics-freshness" type="number" min="1" max="300" value="5"></label><button id="analytics-run" type="button">Calculate</button><a id="report-download" class="action-link" hidden>Export aggregate JSON</a></div>
+        <p id="analytics-info" class="research-note">No analytics calculated.</p><div id="analytics-metrics" class="research-metrics"></div>
+        <h3>Widening events</h3><div class="table-wrap"><table><thead><tr><th>START · UTC</th><th>END · UTC</th><th>WIDENING SECONDS</th><th>RECOVERY SECONDS</th><th>STATUS</th></tr></thead><tbody id="analytics-events"></tbody></table></div>
+        <h3>Source metadata</h3><pre id="analytics-metadata" class="metadata-view">—</pre>
+      </section>
+      <section data-panel="compare" class="research-panel" hidden>
+        <span class="eyebrow">BACKWARD AS-OF · RECEIVE TIME</span><h2>Compare sources</h2>
+        <p>REAL and DEMO are not equivalent execution costs. Quote differences do not establish arbitrage.</p>
+        <div class="research-controls"><label>Left session<select id="compare-left"></select></label><label>Right session<select id="compare-right"></select></label><label>Max age · ms<input id="compare-age" type="number" min="0" max="300000" value="1000"></label><label>Widening threshold · USD/oz<input id="compare-threshold" inputmode="decimal" placeholder="required"></label><button id="compare-run" type="button">Compare</button></div>
+        <p id="compare-info" class="research-note">Select two different source sessions.</p><div id="compare-metrics" class="research-metrics"></div>
+        <div class="table-wrap"><table><thead><tr><th>LEFT RECEIVE · UTC</th><th>RIGHT AGE MS</th><th>LEFT BID / ASK</th><th>RIGHT BID / ASK</th><th>LEFT / RIGHT SPREAD</th><th>LEFT / RIGHT POINTS</th><th>DIFFERENCE</th></tr></thead><tbody id="compare-rows"></tbody></table></div>
+        <pre id="compare-metadata" class="research-note"></pre>
+      </section>
       <footer><span>● &nbsp; LOCAL ONLY</span><p>REAL and DEMO are not equivalent execution costs. No arbitrage or dealer-position inference.</p><span>XBSIS / OBSERVATION</span></footer>
     </main>
   </div>

@@ -55,3 +55,24 @@ uv run --frozen python -m xbsis live-serve --mode mock --port 8765
 Open the local `/live/` route in your browser. See the Windows runbook for ignored
 local source configuration, explicit real-mode confirmation and two-terminal setup.
 Cloud mock results do not verify Windows SDK connectivity.
+
+## Local research workstation
+
+The existing dashboard now includes sealed local session history, descriptive
+spread statistics and backward-looking two-source comparison. Install and try
+synthetic mode on Windows from PowerShell:
+
+```powershell
+.\scripts\install.ps1
+.\scripts\start.ps1 -Mode mock
+Start-Process 'http://127.0.0.1:8765/live/'
+```
+
+The server stays up after its default 120-second capture; stop it with Ctrl+C.
+For local Windows MT5, install with `-IncludeMT5`, prepare the ignored source file
+as described in [Windows runbook](docs/WINDOWS_RUNBOOK.md), then use
+`.\scripts\start.ps1 -Mode mt5 -SourcesFile data/config/sources.json -ConfirmLiveReadonly -Duration 28800`.
+Only confirm a REAL/DEMO environment and USD per troy ounce unit after checking it
+locally. Never commit local configuration or data. See the [user guide](docs/V1_USER_GUIDE.md),
+[methodology](docs/ANALYTICS_METHODOLOGY.md), and [acceptance steps](docs/LOCAL_ACCEPTANCE.md).
+Cloud mocks do not establish real Windows, broker or executable-price behavior.

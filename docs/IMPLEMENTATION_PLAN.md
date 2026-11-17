@@ -48,3 +48,12 @@ base, seed main or auto-merge. Report exact blockers and retain the local commit
 Actual Windows SDK binding and local validation; live collection; metadata capture;
 reconnect/retention/migrations; time-aware analytical schemas; multi-broker comparison;
 React/TypeScript/Plotly; empirical research. Nothing here authorizes those phases.
+
+## Current v1 implementation and evidence gates
+
+Sealed session storage, bounded local history, descriptive analytics, comparison,
+local dashboard, mock browser checks and Windows FakeSDK CI configuration are
+implemented. A configured CI job is not evidence of a successful hosted run.
+Actual Exness REAL, Pepperstone DEMO and simultaneous multi-terminal acceptance
+remain separate local evidence gates; see [local acceptance](LOCAL_ACCEPTANCE.md).
+No automated execution, live cloud connection or automatic merge is in scope.

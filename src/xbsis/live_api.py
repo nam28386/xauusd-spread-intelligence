@@ -9,7 +9,7 @@ from typing import Annotated
 
 from fastapi import FastAPI, HTTPException, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 from xbsis.live_hub import LiveHub
 
@@ -20,6 +20,7 @@ def create_live_app(mode, sources, duration, port, *, hub=None):
     if port == 80:
         allowed_origins.update({"http://127.0.0.1", "http://localhost"})
     recent_requests = deque(maxlen=120)
+    research_lock = asyncio.Semaphore(1)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -110,6 +111,95 @@ def create_live_app(mode, sources, duration, port, *, hub=None):
         if result is None:
             raise HTTPException(status_code=404, detail="unknown source")
         return {"source_id": source_id, "points": result}
+
+    async def research_call(fn, *args):
+        async with research_lock:
+            try:
+                return await asyncio.to_thread(fn, *args)
+            except FileNotFoundError:
+                raise HTTPException(
+                    status_code=404, detail="session or sealed segment unavailable"
+                ) from None
+            except (ValueError, KeyError, OSError):
+                raise HTTPException(
+                    status_code=400, detail="invalid or unavailable research data"
+                ) from None
+            except Exception:
+                raise HTTPException(status_code=500, detail="research operation failed") from None
+
+    @app.get("/live/sessions")
+    async def sessions_route(limit: Annotated[int, Query(ge=1, le=100)] = 100):
+        from xbsis.sessions import list_sessions
+
+        return await research_call(list_sessions, limit)
+
+    @app.get("/live/sessions/{session_id}")
+    async def session_route(session_id: str):
+        from xbsis.sessions import read_manifest
+
+        return await research_call(read_manifest, session_id)
+
+    @app.get("/live/sessions/{session_id}/observations")
+    async def session_observations(
+        session_id: str,
+        segment: Annotated[int, Query(ge=0, le=599)] = 0,
+        after: Annotated[int, Query(ge=0, le=9223372036854775807)] = 0,
+        limit: Annotated[int, Query(ge=1, le=1000)] = 200,
+        start_ns: Annotated[int | None, Query(ge=0, le=9223372036854775807)] = None,
+        end_ns: Annotated[int | None, Query(ge=0, le=9223372036854775807)] = None,
+    ):
+        from xbsis.sessions import page
+
+        rows = await research_call(page, session_id, segment, after, limit, start_ns, end_ns)
+        return {
+            "session_id": session_id,
+            "segment": segment,
+            "rows": rows,
+            "next_after": rows[-1]["ordinal"] if len(rows) == limit else None,
+        }
+
+    @app.get("/live/sessions/{session_id}/statistics")
+    async def session_statistics(
+        session_id: str,
+        threshold: Annotated[str, Query(min_length=1, max_length=80)],
+        freshness_seconds: Annotated[int, Query(ge=1, le=300)] = 5,
+        start_ns: Annotated[int | None, Query(ge=0, le=9223372036854775807)] = None,
+        end_ns: Annotated[int | None, Query(ge=0, le=9223372036854775807)] = None,
+    ):
+        from xbsis.research_api import stats
+
+        return await research_call(
+            stats, session_id, threshold, freshness_seconds * 1_000_000_000, start_ns, end_ns
+        )
+
+    @app.get("/live/compare")
+    async def compare_sessions(
+        left: Annotated[str, Query(min_length=1, max_length=64)],
+        right: Annotated[str, Query(min_length=1, max_length=64)],
+        tolerance_ms: Annotated[int, Query(ge=0, le=300000)] = 1000,
+    ):
+        from xbsis.research_api import comparison
+
+        return await research_call(comparison, left, right, tolerance_ms * 1_000_000)
+
+    @app.get("/live/sessions/{session_id}/report")
+    async def session_report(
+        session_id: str,
+        threshold: Annotated[str, Query(min_length=1, max_length=80)],
+        freshness_seconds: Annotated[int, Query(ge=1, le=300)] = 5,
+        download: bool = False,
+    ):
+        from xbsis.research_api import report
+
+        payload = await research_call(
+            report, session_id, threshold, freshness_seconds * 1_000_000_000
+        )
+        return JSONResponse(
+            payload,
+            headers={"Content-Disposition": "attachment; filename=xbsis-report.json"}
+            if download
+            else None,
+        )
 
     @app.websocket("/live/ws")
     async def websocket(websocket: WebSocket):

@@ -74,3 +74,14 @@ routes; it has no protection against other processes on the same machine. It rej
 unrelated browser origins, limits clients and request rates, uses bundled assets and
 performs no telemetry. Do not proxy, tunnel or expose it. Queue drops and per-browser
 coalescing are visible; the worker writes local storage before attempting transport.
+
+## Local research additions
+
+The research API accepts session IDs and bounded numeric parameters, not paths;
+only sealed segments under the ignored local storage root are readable. HTTP remains
+localhost-only with host and WebSocket origin checks. Localhost does not defend
+against untrusted processes on the same computer; use a trusted Windows account,
+OS permissions and encryption. Aggregated JSON is downloaded only on explicit user
+action; review it before sharing. Hashes are not signatures. Backups, browser
+download directories and cloud sync may contain private observations or summaries:
+keep them local. No telemetry or automatic upload is provided.

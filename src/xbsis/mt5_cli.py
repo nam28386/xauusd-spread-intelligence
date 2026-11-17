@@ -77,6 +77,7 @@ def capture(
     on_observation=None,
     stop_event=None,
     max_duration=120,
+    store_context=None,
 ):
     """Poll snapshots in acquisition order; preserve duplicates and return sanitized counts."""
     _validate_bounds(duration, interval_ms, max_duration=max_duration)
@@ -86,7 +87,7 @@ def capture(
     total = fresh = duplicates = changes = stale = 0
     last_signature = None
     deadline = clock.monotonic() + duration
-    with ObservationStore(output / "observations.duckdb") as store:
+    with store_context or ObservationStore(output / "observations.duckdb") as store:
         while clock.monotonic() < deadline and (stop_event is None or not stop_event.is_set()):
             raw = adapter.quote(symbol)
             observation = engine.process(raw, metadata, processing_time_ns=clock.time_ns())

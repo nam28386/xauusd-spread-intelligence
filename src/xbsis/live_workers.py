@@ -8,7 +8,7 @@ from decimal import Decimal
 from xbsis.adapters.mock import MockBrokerAdapter
 from xbsis.models import RawQuote
 from xbsis.pipeline import SpreadEngine
-from xbsis.storage import ObservationStore
+from xbsis.sessions import SessionLimitError, SessionRecorder
 
 
 def publish(out, dropped, message):
@@ -34,7 +34,7 @@ def mock_worker(index, out, dropped, state, stop, duration, run_id):
         state.value = 2
         end = time.monotonic() + duration
         step = 0
-        with ObservationStore(output / "observations.duckdb") as store:
+        with SessionRecorder(output, stop_event=stop) as store:
             while time.monotonic() < end and not stop.is_set():
                 event = step // 2
                 bid = Decimal("2000.10000") + Decimal(index) + Decimal(event % 5) / 100
@@ -72,6 +72,8 @@ def mock_worker(index, out, dropped, state, stop, duration, run_id):
             encoding="utf-8",
         )
         state.value = 3
+    except SessionLimitError:
+        state.value = 6
     except Exception:
         state.value = 4
 
@@ -124,13 +126,16 @@ def mt5_worker(index, source_data, out, dropped, state, stop, duration, run_id):
                 account_type=source_data["account_type_user_label"],
                 on_observation=send,
                 stop_event=stop,
-                max_duration=300,
+                max_duration=28_800,
+                store_context=SessionRecorder(output, stop_event=stop),
             )
             summary["queue_dropped_display"] = dropped.value
             (output / "summary.json").write_text(
                 json.dumps(summary, indent=2) + "\n", encoding="utf-8"
             )
         state.value = 3
+    except SessionLimitError:
+        state.value = 6
     except MT5Error as exc:
         state.value = 5 if str(exc) == "Terminal is disconnected." else 4
     except Exception:

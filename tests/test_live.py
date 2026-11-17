@@ -122,7 +122,7 @@ def test_cli_loopback_and_mt5_confirmation(monkeypatch):
     with pytest.raises(ValueError, match="Mock mode"):
         run_live(args)
     args.sources_file = None
-    args.duration = 301
+    args.duration = 28_801
     with pytest.raises(ValueError, match="duration"):
         run_live(args)
 

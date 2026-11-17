@@ -30,3 +30,11 @@ Run `uv run --frozen --extra dev ruff check .`, `ruff format --check .`, and
 Review formulas, units, Decimal coercions, timestamps, SDK isolation and ignored
 outputs. New semantics require version/documentation changes and tests. Passing
 cloud FakeMT5 tests does not establish actual Windows or broker connectivity.
+
+## Session research and release review
+Sessions rotate into immutable sealed DuckDB segments; never query an active writer
+file. Review interrupted state, size/duration bounds and recovery behavior before
+changing storage. Analytics must document receive-time validity, uncertainty, units,
+thresholds and as-of alignment; never label observed differences arbitrage or execution
+costs. Keep report exports local. Browser and Windows FakeSDK tests do not replace
+actual Windows terminal acceptance. Do not merge automatically.

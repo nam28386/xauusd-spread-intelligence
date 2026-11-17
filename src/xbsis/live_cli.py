@@ -30,8 +30,8 @@ def mock_sources():
 
 
 def run_live(args):
-    if not 1 <= args.port <= 65535 or not 1 <= args.duration <= 300:
-        raise ValueError("Port must be 1–65535 and duration 1–300 seconds.")
+    if not 1 <= args.port <= 65535 or not 1 <= args.duration <= 28_800:
+        raise ValueError("Port must be 1–65535 and duration 1–28800 seconds.")
     if args.mode == "mt5":
         if sys.platform != "win32":
             raise ValueError("MT5 live mode requires local Windows; cloud must use mock.")

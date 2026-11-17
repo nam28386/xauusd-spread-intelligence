@@ -120,3 +120,17 @@ Packaged quotes.json contains nine labeled synthetic events; manifest.json inclu
 its hash, versions, origin and scientific status. No broker data, labels, trading
 outcomes, train/test splits or market inference exists. Golden expected results are
 hand-specified in tests, not regenerated from the implementation under test.
+
+## Session and research contracts
+
+`session-v1` records session ID, source aliases/environment, revision and dirty
+state, segment order, counts, bounds, sizes, hashes and completion state. Active
+files are excluded. Legacy provenance is UNKNOWN. History returns at most 1,000
+observations per segment page with an ordinal cursor and optional receive-time
+bounds. Source time, receive time and processing time remain distinct.
+`spread-statistics-v1` reports sample/quality counts, Decimal strings, explicit
+threshold, freshness, receive-time window, metadata versions and censored widening
+events. `receive-asof-v1` uses left evaluation receive times and a backward-only
+right quote within explicit tolerance; it reports unmatched and coverage counts,
+per-source prices, points and metadata. `research-report-v1` is an aggregate
+measurement, not a guarantee of execution. See [methodology](ANALYTICS_METHODOLOGY.md).

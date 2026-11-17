@@ -102,7 +102,9 @@ def test_fake_initialization_metadata_quote_and_shutdown():
         assert raw.received_time_ns >= raw.source_time_ms * 1_000_000
         assert raw.flags == 6
         assert quote_status(obs) == "VALID"
-        assert fake.initialized == [{"path": "/synthetic/terminal64.exe", "timeout": 5000}]
+        assert fake.initialized == [
+            {"path": str(Path("/synthetic/terminal64.exe")), "timeout": 5000}
+        ]
     assert fake.stopped == 1
 
 
