@@ -7,7 +7,14 @@ from types import SimpleNamespace
 
 import pytest
 
-from xbsis.adapters.mt5 import MT5Adapter, MT5Error, connect_local, make_engine, quote_status
+from xbsis.adapters.mt5 import (
+    MT5Adapter,
+    MT5Error,
+    SourceIdentity,
+    connect_local,
+    make_engine,
+    quote_status,
+)
 from xbsis.models import AccountEnvironment, QualityFlag
 from xbsis.mt5_cli import _new_output, capture, run
 from xbsis.storage import ObservationStore
@@ -72,7 +79,13 @@ class FakeMT5:
 
 
 def open_fake(fake):
-    return MT5Adapter(fake, Path("/synthetic/terminal64.exe"))
+    return MT5Adapter(
+        fake,
+        Path("/synthetic/terminal64.exe"),
+        identity=SourceIdentity(
+            source_id="synthetic-source", broker_id="synthetic-broker", server_id="synthetic-server"
+        ),
+    )
 
 
 def test_fake_initialization_metadata_quote_and_shutdown():
@@ -147,6 +160,7 @@ def test_unknown_unit_does_not_invent_usd_spread():
         raw = adapter.quote("XAUUSD.mock")
         obs = make_engine(raw.symbol_raw).process(raw, meta, processing_time_ns=time.time_ns())
         assert obs.spread.spread_usd_per_oz is None
+        assert meta.quote_currency == "UNKNOWN"
         assert str(obs.spread.spread_points) == "25"
         assert QualityFlag.UNKNOWN_PRICE_UNIT in obs.spread.data_quality_flags
 
@@ -237,7 +251,7 @@ def test_output_directory_is_ignored_and_unique(tmp_path, monkeypatch):
 def test_demo_capture_refused_before_creating_output(tmp_path, monkeypatch):
     fake = FakeMT5()
     fake.account = SimpleNamespace(trade_mode=0)
-    monkeypatch.setattr("xbsis.mt5_cli.connect_local", lambda _: open_fake(fake))
+    monkeypatch.setattr("xbsis.mt5_cli.connect_local", lambda _, **kwargs: open_fake(fake))
     monkeypatch.chdir(tmp_path)
     args = argparse.Namespace(
         command="mt5-capture",
@@ -245,6 +259,11 @@ def test_demo_capture_refused_before_creating_output(tmp_path, monkeypatch):
         symbol="XAUUSD.mock",
         confirm_usd_per_oz=True,
         confirm_real=True,
+        confirm_demo=False,
+        source_id="synthetic-source",
+        broker_id="synthetic-broker",
+        server_alias="synthetic-server",
+        account_type="UNKNOWN",
         run_name="run",
         duration=1.0,
         interval_ms=250,
@@ -382,11 +401,26 @@ def test_invalid_capture_bounds_do_not_connect(duration, interval, monkeypatch):
 def test_sdk_unknown_exception_is_suppressed_by_cli(monkeypatch, capsys):
     from xbsis.__main__ import main
 
-    def broken(_):
+    def broken(_, **kwargs):
         raise RuntimeError("sensitive information from SDK")
 
     monkeypatch.setattr("xbsis.mt5_cli.connect_local", broken)
-    monkeypatch.setattr(sys, "argv", ["xbsis", "mt5-doctor", "--terminal-path", "/unused"])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "xbsis",
+            "mt5-doctor",
+            "--terminal-path",
+            "/unused",
+            "--source-id",
+            "synthetic-source",
+            "--broker-id",
+            "synthetic-broker",
+            "--server-alias",
+            "synthetic-server",
+        ],
+    )
     with pytest.raises(SystemExit) as exc:
         main()
     assert exc.value.code == 2
@@ -428,23 +462,28 @@ def test_capture_rejects_data_symlink_to_unignored_path(tmp_path, monkeypatch):
 
 def test_doctor_reports_status_without_account_values_or_prices(monkeypatch, capsys):
     fake = FakeMT5()
-    monkeypatch.setattr("xbsis.mt5_cli.connect_local", lambda _: open_fake(fake))
+    monkeypatch.setattr("xbsis.mt5_cli.connect_local", lambda _, **kwargs: open_fake(fake))
     args = argparse.Namespace(
         command="mt5-doctor",
+        source_id="synthetic-source",
+        broker_id="synthetic-broker",
+        server_alias="synthetic-server",
         terminal_path=Path("/synthetic/terminal64.exe"),
         symbol="XAUUSD.mock",
         confirm_usd_per_oz=True,
     )
     run(args)
     result = json.loads(capsys.readouterr().out)
-    assert result == {
-        "mode": "READ_ONLY",
-        "account_environment": "REAL",
-        "symbol": "XAUUSD.mock",
-        "quote_status": "VALID",
-        "quality_flags": [],
-        "usd_per_oz_confirmed": True,
-    }
+    assert result["mode"] == "READ_ONLY"
+    assert result["account_environment"] == "REAL"
+    assert result["symbol"] == "XAUUSD.mock"
+    assert result["quote_status"] == "VALID"
+    assert result["quality_flags"] == []
+    assert result["usd_per_oz_confirmed"] is True
+    assert result["broker_identity_verified"] is False
+    assert result["instrument"]["point_size"] == "0.01"
+    assert result["instrument"]["tick_size"] == "0.01"
+    assert result["instrument"]["contract_size"] == "100.0"
     assert fake.stopped == 1
 
 

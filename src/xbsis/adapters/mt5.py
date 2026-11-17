@@ -1,21 +1,78 @@
 """Explicit Windows-only MT5 observation; no account switching or trading APIs."""
 
+import hashlib
+import json
 import math
 import os
 import platform
 import re
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
+from pydantic import field_validator
+
 from xbsis.adapters.windows_contract import TickSnapshot, WindowsSourceConfig, map_snapshot
-from xbsis.models import AccountEnvironment, InstrumentMetadata, Observation, QualityFlag
+from xbsis.models import (
+    AccountEnvironment,
+    Contract,
+    Identifier,
+    InstrumentMetadata,
+    Observation,
+    QualityFlag,
+)
 from xbsis.pipeline import SpreadEngine
 
 
 class MT5Error(RuntimeError):
     """Safe, prewritten error; never include SDK messages, account fields or paths."""
+
+
+class SourceIdentity(Contract):
+    """User-chosen aliases, never an SDK-verified broker/server identity."""
+
+    source_id: Identifier
+    broker_id: Identifier
+    server_id: Identifier
+
+    @field_validator("source_id", "broker_id", "server_id")
+    @classmethod
+    def reject_numeric_only(cls, value: str) -> str:
+        if value.isdigit():
+            raise ValueError("aliases cannot be numeric-only")
+        return value
+
+
+_SESSION_LOCK = threading.Lock()
+_SESSION_BOUND_TERMINAL: str | None = None
+_SESSION_BOUND_IDENTITY: SourceIdentity | None = None
+
+
+def _terminal_guard(terminal: Path):
+    """Hold a Windows named mutex for one installation while a worker is active."""
+    import ctypes
+
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    create = kernel.CreateMutexW
+    create.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_wchar_p]
+    create.restype = ctypes.c_void_p
+    close = kernel.CloseHandle
+    close.argtypes = [ctypes.c_void_p]
+    close.restype = ctypes.c_int
+    fingerprint = hashlib.sha256(os.path.normcase(str(terminal)).encode("utf-8")).hexdigest()
+    handle = create(None, False, "Local\\XBSIS_MT5_" + fingerprint)
+    if not handle:
+        raise MT5Error("Cannot reserve the selected terminal installation.")
+    if ctypes.get_last_error() == 183:  # ERROR_ALREADY_EXISTS
+        close(handle)
+        raise MT5Error("This terminal installation is already in use by another XBSIS worker.")
+
+    def release() -> None:
+        close(handle)
+
+    return release
 
 
 def _check_running_terminal(path: Path) -> Path:
@@ -58,18 +115,20 @@ def _check_running_terminal(path: Path) -> Path:
     return expected
 
 
-def connect_local(path: Path) -> "MT5Adapter":
+def connect_local(path: Path, *, identity: SourceIdentity | None = None) -> "MT5Adapter":
     """Only CLI entry: reject non-Windows before importing optional SDK."""
     if sys.platform != "win32" or platform.machine().upper() != "AMD64":
         raise MT5Error("MT5 connectivity requires 64-bit Windows and Python 3.12.")
     if sys.version_info[:2] != (3, 12):
         raise MT5Error("MT5 connectivity requires Python 3.12.")
+    if identity is None:
+        raise MT5Error("Explicit source, broker and server aliases are required.")
     terminal = _check_running_terminal(path)
     try:
         import MetaTrader5 as mt5
     except ImportError:
         raise MT5Error("Install the Windows mt5 optional dependency.") from None
-    return MT5Adapter(mt5, terminal)
+    return MT5Adapter(mt5, terminal, identity=identity, terminal_guard=_terminal_guard)
 
 
 def _optional_positive(value: object) -> str | None:
@@ -83,26 +142,53 @@ def _optional_positive(value: object) -> str | None:
 class MT5Adapter:
     """Injected SDK object enables tests with fakes; CLI uses connect_local only."""
 
-    def __init__(self, sdk: object, terminal: Path):
+    def __init__(
+        self, sdk: object, terminal: Path, *, identity: SourceIdentity, terminal_guard=None
+    ):
         self.sdk = sdk
         self.terminal = terminal
+        self.identity = identity
         self.environment = AccountEnvironment.UNKNOWN
         self._initialized = False
+        self._guard = terminal_guard
+        self._release_guard = None
+        self._owner = None
+
+    def _check_owner(self) -> None:
+        if not self._initialized or self._owner != threading.get_ident():
+            raise MT5Error("MT5 session must be used only by its owning worker thread.")
+
+    def _release(self) -> None:
+        try:
+            if self._release_guard is not None:
+                self._release_guard()
+        finally:
+            self._release_guard = None
+            self._owner = None
+            _SESSION_LOCK.release()
 
     def __enter__(self) -> "MT5Adapter":
+        global _SESSION_BOUND_IDENTITY, _SESSION_BOUND_TERMINAL
+        if not _SESSION_LOCK.acquire(blocking=False):
+            raise MT5Error("Only one MT5 session is allowed per Python process.")
+        attempted = False
         try:
+            terminal_key = os.path.normcase(os.path.realpath(self.terminal))
+            if _SESSION_BOUND_TERMINAL is not None and _SESSION_BOUND_TERMINAL != terminal_key:
+                raise MT5Error("A Python worker cannot switch between terminal installations.")
+            if _SESSION_BOUND_IDENTITY is not None and _SESSION_BOUND_IDENTITY != self.identity:
+                raise MT5Error("A Python worker cannot switch source identities.")
+            if self._guard is not None:
+                self._release_guard = self._guard(self.terminal)
+            self._owner = threading.get_ident()
             # No login, password, server, account, or portable switch is supplied.
+            _SESSION_BOUND_TERMINAL = terminal_key
+            _SESSION_BOUND_IDENTITY = self.identity
+            attempted = True
             self._initialized = bool(self.sdk.initialize(path=str(self.terminal), timeout=5000))
             if not self._initialized:
                 raise MT5Error("MT5 initialization failed; verify the already-running terminal.")
-            terminal = self.sdk.terminal_info()
-            if terminal is None or not terminal.connected:
-                raise MT5Error("Terminal is disconnected.")
-            # Prevent silently accepting another installation. No terminal data is retained.
-            if not getattr(terminal, "path", None) or os.path.normcase(
-                os.path.realpath(terminal.path)
-            ) != os.path.normcase(os.path.realpath(self.terminal.parent)):
-                raise MT5Error("Connected terminal path does not match the selected installation.")
+            self._verify_terminal()
             account = self.sdk.account_info()
             if account is None:
                 raise MT5Error("No authenticated account is available in the terminal.")
@@ -115,26 +201,42 @@ class MT5Adapter:
             else:
                 self.environment = AccountEnvironment.UNKNOWN
             return self
-        except Exception as exc:
+        except BaseException as exc:
             try:
-                self.sdk.shutdown()
+                if attempted:
+                    self.sdk.shutdown()
             except Exception:  # noqa: S110 -- SDK exception details may contain private data
                 pass
-            self._initialized = False
-            if isinstance(exc, MT5Error):
+            finally:
+                self._initialized = False
+                self._release()
+            if isinstance(exc, MT5Error) or not isinstance(exc, Exception):
                 raise
             raise MT5Error("MT5 initialization or terminal check failed.") from None
 
     def __exit__(self, exc_type, exc, traceback) -> None:
         if self._initialized:
+            self._check_owner()
             self._initialized = False
             try:
                 self.sdk.shutdown()
             except Exception:
                 if exc_type is None:
                     raise MT5Error("MT5 shutdown failed.") from None
+            finally:
+                self._release()
+
+    def _verify_terminal(self) -> None:
+        terminal = self.sdk.terminal_info()
+        if terminal is None or not terminal.connected:
+            raise MT5Error("Terminal is disconnected.")
+        if not getattr(terminal, "path", None) or os.path.normcase(
+            os.path.realpath(terminal.path)
+        ) != os.path.normcase(os.path.realpath(self.terminal.parent)):
+            raise MT5Error("Connected terminal path does not match the selected installation.")
 
     def candidates(self) -> tuple[str, ...]:
+        self._check_owner()
         symbols = self.sdk.symbols_get()
         if symbols is None:
             raise MT5Error("Symbol discovery failed.")
@@ -164,14 +266,20 @@ class MT5Adapter:
         return requested
 
     def metadata(self, symbol: str, *, confirm_usd_per_oz: bool) -> InstrumentMetadata:
+        self._check_owner()
         info = self.sdk.symbol_info(symbol)
         if info is None:
             raise MT5Error("Selected symbol metadata is unavailable.")
         digits = getattr(info, "digits", None)
         if type(digits) is not int or not 0 <= digits <= 18:
             digits = None
-        currency = "USD" if getattr(info, "currency_profit", None) == "USD" else "UNKNOWN"
-        return InstrumentMetadata(
+        # Profit currency alone does not establish the quoted price unit.
+        currency = (
+            "USD"
+            if confirm_usd_per_oz and getattr(info, "currency_profit", None) == "USD"
+            else "UNKNOWN"
+        )
+        metadata = InstrumentMetadata(
             point_size=_optional_positive(getattr(info, "point", None)),
             tick_size=_optional_positive(getattr(info, "trade_tick_size", None)),
             digits=digits,
@@ -183,8 +291,38 @@ class MT5Adapter:
             metadata_source="local-mt5-symbol-info",
             metadata_version="mt5-symbol-info-v1",
         )
+        content = json.dumps(
+            {
+                "identity": self.identity.model_dump(mode="json"),
+                "account_environment": self.environment.value,
+                "symbol": symbol,
+                "metadata": metadata.model_dump(mode="json"),
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        return InstrumentMetadata.model_validate(
+            metadata.model_dump()
+            | {"metadata_version": "mt5-v1-" + hashlib.sha256(content).hexdigest()}
+        )
 
     def quote(self, symbol: str):
+        self._check_owner()
+        self._verify_terminal()
+        account = self.sdk.account_info()
+        if account is None:
+            raise MT5Error("The terminal no longer has an authenticated account.")
+        trade_mode = account.trade_mode
+        del account
+        expected_mode = (
+            self.sdk.ACCOUNT_TRADE_MODE_REAL
+            if self.environment == AccountEnvironment.REAL
+            else self.sdk.ACCOUNT_TRADE_MODE_DEMO
+            if self.environment == AccountEnvironment.DEMO
+            else None
+        )
+        if expected_mode is None or trade_mode != expected_mode:
+            raise MT5Error("Account environment is UNKNOWN or changed during the session.")
         tick = self.sdk.symbol_info_tick(symbol)
         received_time_ns = time.time_ns()  # immediately after the local SDK read
         snapshot = None
@@ -200,9 +338,9 @@ class MT5Adapter:
                 flags=flags,
             )
         config = WindowsSourceConfig(
-            source_id="local-mt5",
-            broker_id="local-broker",
-            server_id="local-server",
+            source_id=self.identity.source_id,
+            broker_id=self.identity.broker_id,
+            server_id=self.identity.server_id,
             account_environment=self.environment,
             symbol_raw=symbol,
         )

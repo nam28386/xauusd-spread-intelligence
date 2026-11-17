@@ -28,7 +28,8 @@ encrypted; protect it with OS permissions and disk encryption. No automatic sync
 cloud storage, telemetry or data upload is implemented. Do not put data in folders
 synced to consumer cloud tools. Do not log quote payloads, SDK errors or environment
 contents. Synthetic replay prints hashes; local MT5 capture prints sanitized counts,
-and doctor prints only the selected symbol, environment and quality status. API
+and doctor prints the selected symbol, user-supplied aliases, environment, quality
+status and instrument metadata. Those aliases do not verify broker identity. API
 access logging is disabled.
 
 ## Local API threat boundary

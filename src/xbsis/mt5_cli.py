@@ -6,7 +6,9 @@ import re
 import time
 from pathlib import Path
 
-from xbsis.adapters.mt5 import MT5Error, connect_local, make_engine, quote_status
+from pydantic import ValidationError
+
+from xbsis.adapters.mt5 import MT5Error, SourceIdentity, connect_local, make_engine, quote_status
 from xbsis.models import AccountEnvironment, QualityFlag
 from xbsis.storage import ObservationStore
 
@@ -15,10 +17,18 @@ def add_commands(commands) -> None:
     for command in ("mt5-doctor", "mt5-capture"):
         parser = commands.add_parser(command, help="explicit local Windows MT5 read-only operation")
         parser.add_argument("--terminal-path", required=True, type=Path)
+        parser.add_argument("--source-id", required=True)
+        parser.add_argument("--broker-id", required=True)
+        parser.add_argument("--server-alias", required=True)
         parser.add_argument("--symbol", required=command == "mt5-capture")
         parser.add_argument("--confirm-usd-per-oz", action="store_true")
         if command == "mt5-capture":
-            parser.add_argument("--confirm-real", action="store_true", required=True)
+            confirmation = parser.add_mutually_exclusive_group(required=True)
+            confirmation.add_argument("--confirm-real", action="store_true")
+            confirmation.add_argument("--confirm-demo", action="store_true")
+            parser.add_argument(
+                "--account-type", choices=("STANDARD", "RAW", "RAZOR", "UNKNOWN"), default="UNKNOWN"
+            )
             parser.add_argument("--run-name", required=True)
             parser.add_argument("--duration", type=float, default=120.0)
             parser.add_argument("--interval-ms", type=int, default=250)
@@ -54,9 +64,13 @@ def _validate_bounds(duration: float, interval_ms: int) -> None:
         raise MT5Error("Polling interval must be 50 to 10000 milliseconds.")
 
 
-def capture(adapter, symbol, metadata, *, duration, interval_ms, output, clock=time):
+def capture(
+    adapter, symbol, metadata, *, duration, interval_ms, output, clock=time, account_type="UNKNOWN"
+):
     """Poll snapshots in acquisition order; preserve duplicates and return sanitized counts."""
     _validate_bounds(duration, interval_ms)
+    if account_type not in {"STANDARD", "RAW", "RAZOR", "UNKNOWN"}:
+        raise MT5Error("Invalid account type label.")
     engine = make_engine(symbol)
     total = fresh = duplicates = changes = stale = 0
     last_signature = None
@@ -93,6 +107,7 @@ def capture(adapter, symbol, metadata, *, duration, interval_ms, output, clock=t
     summary = {
         "mode": "READ_ONLY_POLLING",
         "account_environment": adapter.environment.value,
+        "account_type_user_label": account_type,
         "status": status,
         "snapshots": total,
         "fresh_snapshots": fresh,
@@ -109,7 +124,27 @@ def capture(adapter, symbol, metadata, *, duration, interval_ms, output, clock=t
 def run(args) -> None:
     if args.command == "mt5-capture":
         _validate_bounds(args.duration, args.interval_ms)
-    with connect_local(args.terminal_path) as adapter:
+    try:
+        identity = SourceIdentity(
+            source_id=args.source_id, broker_id=args.broker_id, server_id=args.server_alias
+        )
+    except ValidationError:
+        raise MT5Error(
+            "Invalid source, broker or server alias; use non-sensitive identifiers."
+        ) from None
+    if args.command == "mt5-capture":
+        real = getattr(args, "confirm_real", False)
+        demo = getattr(args, "confirm_demo", False)
+        if real == demo:
+            raise MT5Error("Confirm exactly one of REAL or DEMO.")
+    with connect_local(args.terminal_path, identity=identity) as adapter:
+        if args.command == "mt5-capture":
+            expected = AccountEnvironment.REAL if real else AccountEnvironment.DEMO
+            if adapter.environment != expected:
+                raise MT5Error(
+                    f"Capture requires a verified {expected.value} terminal; "
+                    "actual environment differs or is UNKNOWN."
+                )
         symbol = adapter.select_symbol(args.symbol)
         metadata = adapter.metadata(symbol, confirm_usd_per_oz=args.confirm_usd_per_oz)
         if args.command == "mt5-doctor":
@@ -122,6 +157,9 @@ def run(args) -> None:
                         "mode": "READ_ONLY",
                         "account_environment": adapter.environment.value,
                         "symbol": symbol,
+                        "aliases_user_supplied": identity.model_dump(mode="json"),
+                        "broker_identity_verified": False,
+                        "instrument": metadata.model_dump(mode="json"),
                         "quote_status": quote_status(obs),
                         "quality_flags": list(obs.spread.data_quality_flags),
                         "usd_per_oz_confirmed": metadata.price_unit == "USD_PER_TROY_OUNCE",
@@ -129,8 +167,6 @@ def run(args) -> None:
                 )
             )
             return
-        if adapter.environment != AccountEnvironment.REAL:
-            raise MT5Error("Capture requires a verified REAL terminal; doctor may inspect DEMO.")
         output = _new_output(args.run_name)
         result = capture(
             adapter,
@@ -139,5 +175,6 @@ def run(args) -> None:
             duration=args.duration,
             interval_ms=args.interval_ms,
             output=output,
+            account_type=args.account_type,
         )
         print(json.dumps(result, sort_keys=True))

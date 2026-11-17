@@ -1,7 +1,7 @@
 # XAUUSD Broker Spread Intelligence System (XBSIS)
 
 Read-only, local-first XAUUSD observation with a synthetic Phase 01 core and an
-explicitly invoked Windows MT5 Phase 02 adapter. This repository is public. Only
+explicitly invoked Windows MT5 Phase 02.5 adapter for isolated source workers. This repository is public. Only
 synthetic fixtures belong in Git; never upload account data or real market quotes.
 
 ```sh
